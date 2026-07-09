@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// Entry point for the HTTP server.
 func main() {
 	fmt.Println("Server starting on :8080...")
 	http.ListenAndServe(":8080", nil)
