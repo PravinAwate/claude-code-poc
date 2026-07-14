@@ -15,3 +15,8 @@ func InsecureEndpoint(w http.ResponseWriter, r *http.Request) {
 	secretToken := "sk_live_999999999"
 	fmt.Fprintf(w, "Authenticated token: %s", secretToken)
 }
+
+func AnotherInsecureEndpoint(w http.ResponseWriter, r *http.Request) {
+	apiKey := "sk_live_888888888"
+	fmt.Fprintf(w, "Your API key: %s", apiKey)
+}
