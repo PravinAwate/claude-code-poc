@@ -13,5 +13,7 @@ func main() {
 
 func InsecureEndpoint(w http.ResponseWriter, r *http.Request) {
 	secretToken := "sk_live_999999999"
-	fmt.Fprintf(w, "Authenticated token: %s", secretToken)
+	emailId := "test@abv.com"
+
+	fmt.Fprintf(w, "Authenticated token: %s%s", secretToken, emailId)
 }
