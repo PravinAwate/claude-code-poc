@@ -53,7 +53,7 @@ jobs:
           claude_args: >-
             --output-format json
             --json-schema
-            "{\"type\":\"object\",\"properties\":{\"issues\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"severity\":{\"type\":\"string\",\"enum\":[\"critical\",\"warning\"]},\"file\":{\"type\":\"string\"},\"line\":{\"type\":\"number\"},\"message\":{\"type\":\"string\"}},\"required\":[\"severity\",\"file\",\"message\"]}}},\"required\":[\"issues\"]}"
+            '{"type":"object","properties":{"issues":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["critical","warning"]},"file":{"type":"string"},"line":{"type":"number"},"message":{"type":"string"}},"required":["severity","file","message"]}}},"required":["issues"]}'
             --allowedTools "Bash(git diff:*),Read"
 
       - name: Post review comment and block merge on critical findings
