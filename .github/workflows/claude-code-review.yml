@@ -1,84 +1,54 @@
-name: Claude Code Review
+name: PR Review with Progress Tracking
+
+# This example demonstrates how to use the track_progress feature to get
+# visual progress tracking for PR reviews, similar to v0.x agent mode.
 
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
 
 jobs:
-  claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
+  review-with-tracking:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
-      issues: write
       id-token: write
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
-      - name: Run Claude Code Review
-        id: claude-review
+      - name: PR Review with Progress Tracking
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Enable progress tracking
+          track_progress: true
+
+          # Your custom review instructions
           prompt: |
-            List the files changed in this PR with:
-            `git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}`
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Then read each changed file's FULL CURRENT CONTENT (not just the diff) and review it end
-            to end -- report every issue in those files, including ones that pre-date this PR, not
-            only lines the diff touched. Always review regardless of any prior comments on this PR.
+            Perform a comprehensive code review with the following focus areas:
 
-            If a CLAUDE.md file exists in the repo, check against its rules. Always flag, regardless
-            of CLAUDE.md:
-            - hardcoded credentials, API keys, or tokens
-            - obvious bugs (off-by-one errors, out-of-bounds access, nil/nil-pointer dereferences, etc.)
+            1. **Code Quality**
+               - Clean code principles and best practices
+               - Proper error handling and edge cases
+               - Code readability and maintainability
+           
+            Provide detailed feedback using inline comments for specific issues.
+            Use top-level comments for general observations or praise.
 
-            Respond with the required JSON only.
-          claude_args: >-
-            --output-format json
-            --json-schema
-            "{\"type\":\"object\",\"properties\":{\"issues\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"severity\":{\"type\":\"string\",\"enum\":[\"critical\",\"warning\"]},\"file\":{\"type\":\"string\"},\"line\":{\"type\":\"number\"},\"message\":{\"type\":\"string\"}},\"required\":[\"severity\",\"file\",\"message\"]}}},\"required\":[\"issues\"]}"
-            --allowedTools "Bash(git diff:*),Read"
+          # Tools for comprehensive PR review
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
 
-      - name: Post review comment and block merge on critical findings
-        env:
-          GH_TOKEN: ${{ github.token }}
-          FINDINGS: ${{ steps.claude-review.outputs.structured_output }}
-        run: |
-          echo "$FINDINGS" | jq .
-
-          ISSUE_COUNT=$(echo "$FINDINGS" | jq '.issues | length')
-          if [ "$ISSUE_COUNT" -eq 0 ]; then
-            echo "No issues found — nothing to post."
-            exit 0
-          fi
-
-          BODY=$(echo "$FINDINGS" | jq -r '
-            "## Code review\n\n" +
-            (.issues | map(
-              "- **[" + .severity + "]** `" + .file + (if .line then ":" + (.line | tostring) else "" end) + "` — " + .message
-            ) | join("\n"))
-          ')
-          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body "$BODY"
-
-          CRITICAL_COUNT=$(echo "$FINDINGS" | jq '[.issues[] | select(.severity == "critical")] | length')
-          if [ "$CRITICAL_COUNT" -gt 0 ]; then
-            echo "::error::$CRITICAL_COUNT critical finding(s) — blocking this check to prevent merge."
-            exit 1
-          fi
+# When track_progress is enabled:
+# - Creates a tracking comment with progress checkboxes
+# - Includes all PR context (comments, attachments, images)
+# - Updates progress as the review proceeds
+# - Marks as completed when done
