@@ -29,17 +29,51 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
-          claude_args: '--allowedTools Skill'
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
+          prompt: |
+            Review the diff between ${{ github.event.pull_request.base.sha }} and ${{ github.event.pull_request.head.sha }}
+            (run `git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}` to see it).
 
+            If a CLAUDE.md file exists in the repo, check the diff against its rules. Always flag, regardless of CLAUDE.md:
+            - hardcoded credentials, API keys, or tokens
+            - obvious bugs (off-by-one errors, out-of-bounds access, nil/nil-pointer dereferences, etc.)
+
+            Only report issues introduced by this diff, not pre-existing ones. Respond with the required JSON only.
+          claude_args: >-
+            --output-format json
+            --json-schema
+            "{\"type\":\"object\",\"properties\":{\"issues\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"severity\":{\"type\":\"string\",\"enum\":[\"critical\",\"warning\"]},\"file\":{\"type\":\"string\"},\"line\":{\"type\":\"number\"},\"message\":{\"type\":\"string\"}},\"required\":[\"severity\",\"file\",\"message\"]}}},\"required\":[\"issues\"]}"
+            --allowedTools "Bash(git diff:*),Bash(git log:*),Bash(cat:*)"
+
+      - name: Post review comment and block merge on critical findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINDINGS: ${{ steps.claude-review.outputs.structured_output }}
+        run: |
+          echo "$FINDINGS" | jq .
+
+          ISSUE_COUNT=$(echo "$FINDINGS" | jq '.issues | length')
+          if [ "$ISSUE_COUNT" -eq 0 ]; then
+            echo "No issues found — nothing to post."
+            exit 0
+          fi
+
+          BODY=$(echo "$FINDINGS" | jq -r '
+            "## Code review\n\n" +
+            (.issues | map(
+              "- **[" + .severity + "]** `" + .file + (if .line then ":" + (.line | tostring) else "" end) + "` — " + .message
+            ) | join("\n"))
+          ')
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body "$BODY"
+
+          CRITICAL_COUNT=$(echo "$FINDINGS" | jq '[.issues[] | select(.severity == "critical")] | length')
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "::error::$CRITICAL_COUNT critical finding(s) — blocking this check to prevent merge."
+            exit 1
+          fi
