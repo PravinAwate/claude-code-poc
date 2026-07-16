@@ -8,11 +8,12 @@ on:
     types: [opened, synchronize, ready_for_review, reopened]
 
 jobs:
-  review-with-tracking:
+  claude-review:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
+      issues: write
       id-token: write
     steps:
       - name: Checkout repository
@@ -23,7 +24,7 @@ jobs:
       - name: PR Review with Progress Tracking
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
           # Enable progress tracking
           track_progress: true
