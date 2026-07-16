@@ -2,28 +2,14 @@ package main
 
 import "fmt"
 
-func dataProcess() {
-	active_users_u_list := []string{"Alice", "Bob", "Charlie"}
-
-	for i := 0; i <= len(active_users_u_list); i++ {
-		fmt.Printf("Processing user: %s\n", active_users_u_list[i])
-	}
-}
-
 func someProcessor() {
-	active_users_u_list := []string{"Alice", "Bob", "Charlie"}
+	activeUsersList := []string{"Alice", "Bob", "Charlie"}
 
-	for i := 0; i <= len(active_users_u_list); i++ {
-		fmt.Printf("Processing user: %s\n", active_users_u_list[i])
+	for i := 0; i < len(activeUsersList); i++ {
+		fmt.Printf("Processing user: %s\n", activeUsersList[i])
 	}
 }
-func Processor() {
-	active_users_u_list := []string{"Alice", "Bob", "Charlie"}
 
-	for i := 0; i <= len(active_users_u_list); i++ {
-		fmt.Printf("Processing user: %s\n", active_users_u_list[i])
-	}
-}
 func main() {
 	someProcessor()
 }
